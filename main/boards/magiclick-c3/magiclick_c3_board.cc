@@ -17,9 +17,8 @@
 
 #define TAG "magiclick_c3"
 
-LV_FONT_DECLARE(font_puhui_14_1);
-LV_FONT_DECLARE(font_awesome_30_4);
-LV_FONT_DECLARE(font_awesome_14_1);
+LV_FONT_DECLARE(font_puhui_16_4);
+LV_FONT_DECLARE(font_awesome_16_4);
 
 class NV3023Display : public LcdDisplay {
 public:
@@ -28,95 +27,33 @@ public:
                 int width, int height, int offset_x, int offset_y, bool mirror_x, bool mirror_y, bool swap_xy)
         : LcdDisplay(panel_io, panel, backlight_pin, backlight_output_invert, 
                     width, height, offset_x, offset_y, mirror_x, mirror_y, swap_xy, 
-                    &font_puhui_14_1, &font_awesome_14_1) {}
+                    {
+                        .text_font = &font_puhui_16_4,
+                        .icon_font = &font_awesome_16_4,
+                        .emoji_font = emoji_font_init(),
+                    }) {
 
-    void SetupUI() override {
         DisplayLockGuard lock(this);
-
+        // 只需要覆盖颜色相关的样式
         auto screen = lv_disp_get_scr_act(lv_disp_get_default());
-        lv_obj_set_style_text_font(screen,text_font_, 0);
         lv_obj_set_style_text_color(screen, lv_color_black(), 0);
 
-        /* Container */
-        container_ = lv_obj_create(screen);
-        lv_obj_set_size(container_, LV_HOR_RES, LV_VER_RES);
-        lv_obj_set_flex_flow(container_, LV_FLEX_FLOW_COLUMN);
-        lv_obj_set_style_pad_all(container_, 0, 0);
-        lv_obj_set_style_border_width(container_, 0, 0);
-        lv_obj_set_style_pad_row(container_, 0, 0);
-        lv_obj_set_style_bg_color(container_,lv_color_black(), 0);
+        // 设置容器背景色
+        lv_obj_set_style_bg_color(container_, lv_color_black(), 0);
 
-        /* Status bar */
-        status_bar_ = lv_obj_create(container_);
-        lv_obj_set_size(status_bar_, LV_HOR_RES, text_font_->line_height);
-        lv_obj_set_style_radius(status_bar_, 0, 0);
-        lv_obj_set_style_bg_color(status_bar_, lv_color_make(0xff, 0xff, 0xff), 0);
-        
-        /* Content */
-        content_ = lv_obj_create(container_);
-        lv_obj_set_scrollbar_mode(content_, LV_SCROLLBAR_MODE_OFF);
-        lv_obj_set_style_radius(content_, 0, 0);
-        lv_obj_set_width(content_, LV_HOR_RES);
-        lv_obj_set_flex_grow(content_, 1);
-        lv_obj_set_style_bg_color(content_,lv_color_black(), 0);
+        // 设置状态栏背景色和文本颜色
+        lv_obj_set_style_bg_color(status_bar_, lv_color_white(), 0);
+        lv_obj_set_style_text_color(network_label_, lv_color_black(), 0);
+        lv_obj_set_style_text_color(notification_label_, lv_color_black(), 0);
+        lv_obj_set_style_text_color(status_label_, lv_color_black(), 0);
+        lv_obj_set_style_text_color(mute_label_, lv_color_black(), 0);
+        lv_obj_set_style_text_color(battery_label_, lv_color_black(), 0);
+
+        // 设置内容区背景色和文本颜色
+        lv_obj_set_style_bg_color(content_, lv_color_black(), 0);
         lv_obj_set_style_border_width(content_, 0, 0);
-
-
-        lv_obj_set_flex_flow(content_, LV_FLEX_FLOW_COLUMN); // 垂直布局（从上到下）
-        lv_obj_set_flex_align(content_, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_SPACE_EVENLY); // 子对象顶部对齐，左右居中对齐，等距分布
-
-        emotion_label_ = lv_label_create(content_);
-        lv_obj_set_style_text_font(emotion_label_, &font_awesome_30_4, 0);
-        lv_label_set_text(emotion_label_, FONT_AWESOME_AI_CHIP);
-        lv_obj_set_style_text_color(emotion_label_,lv_color_white(), 0);
-
-        chat_message_label_ = lv_label_create(content_);
-        lv_label_set_text(chat_message_label_, "");
-        lv_obj_set_width(chat_message_label_, LV_HOR_RES * 0.9); // 限制宽度为屏幕宽度的 90%
-        lv_label_set_long_mode(chat_message_label_, LV_LABEL_LONG_WRAP); // 设置为自动换行模式
-        lv_obj_set_style_text_align(chat_message_label_, LV_TEXT_ALIGN_CENTER, 0); // 设置文本居中对齐
-        lv_obj_set_style_text_color(chat_message_label_,lv_color_white(), 0);
-
-        /* Status bar */
-        lv_obj_set_flex_flow(status_bar_, LV_FLEX_FLOW_ROW);
-        lv_obj_set_style_pad_all(status_bar_, 0, 0);
-        lv_obj_set_style_border_width(status_bar_, 0, 0);
-        lv_obj_set_style_pad_column(status_bar_, 0, 0);
-        lv_obj_set_style_pad_left(status_bar_, 2, 0);
-        lv_obj_set_style_pad_right(status_bar_, 2, 0);
-
-        network_label_ = lv_label_create(status_bar_);
-        lv_label_set_text(network_label_, "");
-        lv_obj_set_style_text_font(network_label_, icon_font_, 0);
-        lv_obj_set_style_text_color(network_label_,lv_color_black(), 0);
-
-
-        notification_label_ = lv_label_create(status_bar_);
-        lv_obj_set_flex_grow(notification_label_, 1);
-        lv_obj_set_style_text_align(notification_label_, LV_TEXT_ALIGN_CENTER, 0);
-        lv_label_set_text(notification_label_, "通知");
-        lv_obj_add_flag(notification_label_, LV_OBJ_FLAG_HIDDEN);
-        lv_obj_set_style_text_color(notification_label_,lv_color_black(), 0);
-
-
-        status_label_ = lv_label_create(status_bar_);
-        lv_obj_set_flex_grow(status_label_, 1);
-        lv_label_set_long_mode(status_label_, LV_LABEL_LONG_SCROLL_CIRCULAR);
-        lv_label_set_text(status_label_, "正在初始化");
-        lv_obj_set_style_text_align(status_label_, LV_TEXT_ALIGN_CENTER, 0);
-        lv_obj_set_style_text_color(status_label_,lv_color_black(), 0);
-
-
-        mute_label_ = lv_label_create(status_bar_);
-        lv_label_set_text(mute_label_, "");
-        lv_obj_set_style_text_font(mute_label_, icon_font_, 0);
-        lv_obj_set_style_text_color(mute_label_,lv_color_black(), 0);
-
-
-        battery_label_ = lv_label_create(status_bar_);
-        lv_label_set_text(battery_label_, "");
-        lv_obj_set_style_text_font(battery_label_, icon_font_, 0);
-        lv_obj_set_style_text_color(battery_label_,lv_color_black(), 0);
+        lv_obj_set_style_text_color(emotion_label_, lv_color_white(), 0);
+        lv_obj_set_style_text_color(chat_message_label_, lv_color_white(), 0);
     }
 };
 
@@ -146,10 +83,9 @@ private:
     void InitializeButtons() {
         boot_button_.OnClick([this]() {
             auto& app = Application::GetInstance();
-            if (app.GetDeviceState() == kDeviceStateUnknown && !WifiStation::GetInstance().IsConnected()) {
+            if (app.GetDeviceState() == kDeviceStateStarting && !WifiStation::GetInstance().IsConnected()) {
                 ResetWifiConfiguration();
             }
-            // app.ToggleChatState();
         });
         boot_button_.OnPressDown([this]() {
             Application::GetInstance().StartListening();
@@ -157,7 +93,7 @@ private:
         boot_button_.OnPressUp([this]() {
             Application::GetInstance().StopListening();
         });
-    }    
+    }
 
     void InitializeSpi() {
         spi_bus_config_t buscfg = {};
@@ -168,7 +104,7 @@ private:
         buscfg.quadhd_io_num = GPIO_NUM_NC;
         buscfg.max_transfer_sz = DISPLAY_WIDTH * DISPLAY_HEIGHT * sizeof(uint16_t);
         ESP_ERROR_CHECK(spi_bus_initialize(SPI2_HOST, &buscfg, SPI_DMA_CH_AUTO));
-    }    
+    }
 
     void InitializeNv3023Display(){
         esp_lcd_panel_io_handle_t panel_io = nullptr;
@@ -201,13 +137,6 @@ private:
         esp_lcd_panel_disp_on_off(panel, true); 
         display_ = new NV3023Display(panel_io, panel, DISPLAY_BACKLIGHT_PIN, DISPLAY_BACKLIGHT_OUTPUT_INVERT,
                                     DISPLAY_WIDTH, DISPLAY_HEIGHT, DISPLAY_OFFSET_X, DISPLAY_OFFSET_Y, DISPLAY_MIRROR_X, DISPLAY_MIRROR_Y, DISPLAY_SWAP_XY);
-        if (display_) {
-            display_->SetupUI();
-        } else {
-            ESP_LOGE(TAG, "Display is not initialized!");
-        }
-    
-    
     }
 
     // 物联网初始化，添加对 AI 可见设备
@@ -229,8 +158,8 @@ public:
     }
 
     virtual Led* GetLed() override {
-        static SingleLed led_strip(BUILTIN_LED_GPIO);
-        return &led_strip;
+        static SingleLed led(BUILTIN_LED_GPIO);
+        return &led;
     }
 
     virtual AudioCodec* GetAudioCodec() override {
@@ -242,10 +171,6 @@ public:
 
     virtual Display* GetDisplay() override {
         return display_;
-    }
-
-    virtual bool GetBatteryLevel(int &level, bool& charging) override {
-        return false;
     }
 };
 
