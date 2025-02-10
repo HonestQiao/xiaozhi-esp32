@@ -175,7 +175,7 @@ private:
                                   {
                                       .text_font = &font_puhui_16_4,
                                       .icon_font = &font_awesome_16_4,
-                                      .emoji_font = emoji_font_init(),
+                                      .emoji_font = font_emoji_32_init(),
                                   });
 
         gpio_config_t config;
@@ -219,14 +219,17 @@ public:
     }
 
     virtual AudioCodec *GetAudioCodec() override {
-        static Tcircles3AudioCodec *audio_codec = nullptr;
-        if (audio_codec == nullptr){
-            audio_codec = new Tcircles3AudioCodec(AUDIO_INPUT_SAMPLE_RATE, AUDIO_OUTPUT_SAMPLE_RATE,
-                                                      AUDIO_MIC_I2S_GPIO_BCLK, AUDIO_MIC_I2S_GPIO_WS, AUDIO_MIC_I2S_GPIO_DATA,
-                                                      AUDIO_SPKR_I2S_GPIO_BCLK, AUDIO_SPKR_I2S_GPIO_LRCLK, AUDIO_SPKR_I2S_GPIO_DATA,
-                                                      AUDIO_INPUT_REFERENCE);
-        }
-        return audio_codec;
+        static Tcircles3AudioCodec audio_codec(
+            AUDIO_INPUT_SAMPLE_RATE,
+            AUDIO_OUTPUT_SAMPLE_RATE,
+            AUDIO_MIC_I2S_GPIO_BCLK,
+            AUDIO_MIC_I2S_GPIO_WS,
+            AUDIO_MIC_I2S_GPIO_DATA,
+            AUDIO_SPKR_I2S_GPIO_BCLK,
+            AUDIO_SPKR_I2S_GPIO_LRCLK,
+            AUDIO_SPKR_I2S_GPIO_DATA,
+            AUDIO_INPUT_REFERENCE);
+        return &audio_codec;
     }
 
     virtual Display *GetDisplay() override{

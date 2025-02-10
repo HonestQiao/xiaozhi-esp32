@@ -18,12 +18,12 @@
 #include "esp_lcd_ili9341.h"
 #endif
  
-#define TAG "CompactWifiBoardLCD"
+#define TAG "DuChatX"
 
 LV_FONT_DECLARE(font_puhui_16_4);
 LV_FONT_DECLARE(font_awesome_16_4);
 
-class CompactWifiBoardLCD : public WifiBoard {
+class DuChatX : public WifiBoard {
 private:
  
     Button boot_button_;
@@ -102,7 +102,7 @@ private:
     }
 
 public:
-    CompactWifiBoardLCD() :
+    DuChatX() :
         boot_button_(BOOT_BUTTON_GPIO) {
         InitializeSpi();
         InitializeLcdDisplay();
@@ -131,4 +131,4 @@ public:
     }
 };
 
-DECLARE_BOARD(CompactWifiBoardLCD);
+DECLARE_BOARD(DuChatX);

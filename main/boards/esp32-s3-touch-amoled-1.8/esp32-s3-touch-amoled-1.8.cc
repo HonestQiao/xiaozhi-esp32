@@ -52,7 +52,7 @@ public:
                     {
                         .text_font = &font_puhui_30_4,
                         .icon_font = &font_awesome_30_4,
-                        .emoji_font = emoji_font_64_lite_init(),
+                        .emoji_font = font_emoji_64_init(),
                     }) {
 
         DisplayLockGuard lock(this);
@@ -104,12 +104,6 @@ private:
                 ResetWifiConfiguration();
             }
             app.ToggleChatState();
-        });
-        boot_button_.OnPressDown([this]() {
-            Application::GetInstance().StartListening();
-        });
-        boot_button_.OnPressUp([this]() {
-            Application::GetInstance().StopListening();
         });
     }
 
