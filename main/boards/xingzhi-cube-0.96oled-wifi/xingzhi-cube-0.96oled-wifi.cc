@@ -1,6 +1,6 @@
 #include "wifi_board.h"
 #include "audio_codecs/no_audio_codec.h"
-#include "display/ssd1306_display.h"
+#include "xingzhi_ssd1306_display.h"
 #include "system_reset.h"
 #include "application.h"
 #include "button.h"
@@ -12,12 +12,12 @@
 #include <esp_log.h>
 #include <driver/i2c_master.h>
 
-#define TAG "xingzhicubeoled"
+#define TAG "XINGZHI_CUBE_0_96OLED_WIFI"
 
 LV_FONT_DECLARE(font_puhui_14_1);
 LV_FONT_DECLARE(font_awesome_14_1);
 
-class xingzhicubeoled : public WifiBoard {
+class XINGZHI_CUBE_0_96OLED_WIFI : public WifiBoard {
 private:
     i2c_master_bus_handle_t display_i2c_bus_;
     Button boot_button_;
@@ -80,15 +80,13 @@ private:
         });
     }
 
-    // 物联网初始化，添加对 AI 可见设备
     void InitializeIot() {
         auto& thing_manager = iot::ThingManager::GetInstance();
         thing_manager.AddThing(iot::CreateThing("Speaker"));
-        thing_manager.AddThing(iot::CreateThing("Lamp"));
     }
 
 public:
-    xingzhicubeoled() :
+    XINGZHI_CUBE_0_96OLED_WIFI() :
         boot_button_(BOOT_BUTTON_GPIO),
         volume_up_button_(VOLUME_UP_BUTTON_GPIO),
         volume_down_button_(VOLUME_DOWN_BUTTON_GPIO) {
@@ -109,10 +107,10 @@ public:
     }
 
     virtual Display* GetDisplay() override {
-        static Ssd1306Display display(display_i2c_bus_, DISPLAY_WIDTH, DISPLAY_HEIGHT, DISPLAY_MIRROR_X, DISPLAY_MIRROR_Y,
+        static XINGZHI_Ssd1306Display display(display_i2c_bus_, DISPLAY_WIDTH, DISPLAY_HEIGHT, DISPLAY_MIRROR_X, DISPLAY_MIRROR_Y,
                                     &font_puhui_14_1, &font_awesome_14_1);
         return &display;
     }
 };
 
-DECLARE_BOARD(xingzhicubeoled);
+DECLARE_BOARD(XINGZHI_CUBE_0_96OLED_WIFI);
