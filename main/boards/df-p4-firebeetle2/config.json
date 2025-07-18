@@ -1,0 +1,11 @@
+{
+    "target": "esp32p4",
+    "builds": [
+        {
+            "name": "df-p4-firebeetle2",
+            "sdkconfig_append": [
+                "CONFIG_IOT_PROTOCOL_MCP=y"
+            ]
+        }
+    ]
+}
