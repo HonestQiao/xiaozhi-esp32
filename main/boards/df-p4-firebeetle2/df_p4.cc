@@ -1,10 +1,9 @@
 #include "wifi_board.h"
-#include "audio_codecs/no_audio_codec.h"
+#include "codecs/no_audio_codec.h"
 #include "application.h"
 
 #include "button.h"
 #include "config.h"
-#include "iot/thing_manager.h"
 #include "lamp_controller.h"
 #include "led/gpio_led.h"
 #include "mcp_server.h"
@@ -149,14 +148,9 @@ private:
         });
     }
 
-    // 物联网初始化，添加对 AI 可见设备
-    void InitializeIot() {
-#if CONFIG_IOT_PROTOCOL_XIAOZHI
-        auto& thing_manager = iot::ThingManager::GetInstance();
-        thing_manager.AddThing(iot::CreateThing("Speaker"));
-#elif CONFIG_IOT_PROTOCOL_MCP
+    // 物联网初始化，逐步迁移到 MCP 协议
+    void InitializeTools() {
         // static LampController lamp(LAMP_GPIO);
-#endif
     }
 
 public:
@@ -165,6 +159,7 @@ public:
         InitializeSpi();
         InitializeLcdDisplay();
         InitializeButtons();
+        InitializeTools();
         if (DISPLAY_BACKLIGHT_PIN != GPIO_NUM_NC) {
             GetBacklight()->RestoreBrightness();
         }
