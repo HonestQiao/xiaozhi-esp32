@@ -130,7 +130,7 @@ choice BOARD_TYPE
         depends on IDF_TARGET_ESP32S3
     config BOARD_TYPE_BREAD_COMPACT_WIFI_CAM
         bool "Bread Compact WiFi + LCD + Camera (面包板)"
-        depends on IDF_TARGET_ESP32S3     
+        depends on IDF_TARGET_ESP32S3
     config BOARD_TYPE_BREAD_COMPACT_ML307
         bool "Bread Compact ML307/EC801E (面包板 4G)"
         depends on IDF_TARGET_ESP32S3
@@ -265,6 +265,9 @@ choice BOARD_TYPE
         depends on IDF_TARGET_ESP32S3
     config BOARD_TYPE_M5STACK_ATOM_MATRIX_ECHO_BASE
         bool "M5Stack AtomMatrix + Echo Base"
+        depends on IDF_TARGET_ESP32
+    config BOARD_TYPE_M5STACK_M5PAPER
+        bool "M5Stack M5Paper"
         depends on IDF_TARGET_ESP32
     config BOARD_TYPE_WAVESHARE_ESP32_TOUCH_LCD_3_5
         bool "Waveshare ESP32-Touch-LCD-3.5"
@@ -671,7 +674,7 @@ endchoice
 choice DISPLAY_ESP32S3_TOUCH_LCD_1_85C
     depends on BOARD_TYPE_WAVESHARE_ESP32_S3_TOUCH_LCD_1_85C
     prompt "ESP32S3_TOUCH_LCD_1_85C version"
-    default VERSION_2_0 
+    default VERSION_2_0
     help
         hardware version
     config VERSION_1_0

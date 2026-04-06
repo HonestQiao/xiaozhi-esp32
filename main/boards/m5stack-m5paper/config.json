@@ -1,0 +1,17 @@
+{
+    "target": "esp32",
+    "builds": [
+        {
+            "name": "m5stack-m5paper",
+            "sdkconfig_append": [
+                "CONFIG_ESP_SYSTEM_EVENT_TASK_STACK_SIZE=3072",
+                "CONFIG_ESPTOOLPY_FLASHSIZE_8MB=y",
+                "CONFIG_PARTITION_TABLE_CUSTOM_FILENAME=\"partitions/v2/8m.csv\"",
+                "CONFIG_SPIRAM=y",
+                "CONFIG_SPIRAM_MODE_QUAD=y",
+                "CONFIG_SPIRAM_TYPE_AUTO=y",
+                "CONFIG_USE_MULTILINE_CHAT_MESSAGE=y"
+            ]
+        }
+    ]
+}
