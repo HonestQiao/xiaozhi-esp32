@@ -5,6 +5,7 @@
 #include "config.h"
 #include "i2c_device.h"
 #include "m5paper_display.h"
+#include "power_save_timer.h"
 
 #include <esp_log.h>
 #include <driver/i2c_master.h>
@@ -48,6 +49,34 @@ private:
     DisablePullButton volume_up_button_;
     DisablePullButton volume_down_button_;
     M5PaperDisplay* display_;
+    PowerSaveTimer* power_save_timer_;
+    Es8311AudioCodec* audio_codec_;
+
+    void InitializePowerSaveTimer() {
+        // cpu_max_freq=240: 进入睡眠时降低 CPU 频率到 80MHz
+        // seconds_to_sleep=60: 闲置 60 秒后进入睡眠模式
+        // seconds_to_shutdown=-1: 不自动关机（电子纸可以长时间显示）
+        power_save_timer_ = new PowerSaveTimer(240, 60, -1);
+        power_save_timer_->OnEnterSleepMode([this]() {
+            ESP_LOGI(TAG, "Entering sleep mode");
+            // 停止音频输入以省电
+            if (audio_codec_) {
+                audio_codec_->EnableInput(false);
+            }
+            // 设置电子纸为省电模式（如果支持）
+            display_->EnterLowPowerState();
+        });
+        power_save_timer_->OnExitSleepMode([this]() {
+            ESP_LOGI(TAG, "Exiting sleep mode");
+            // 恢复音频输入
+            if (audio_codec_) {
+                audio_codec_->EnableInput(true);
+            }
+            // 唤醒电子纸
+            display_->ExitLowPowerState();
+        });
+        power_save_timer_->SetEnabled(true);
+    }
 
     void InitializeI2c() {
         // Initialize I2C peripheral
@@ -184,10 +213,18 @@ private:
         );
     }
 
+    virtual void SetPowerSaveLevel(PowerSaveLevel level) override {
+        if (level != PowerSaveLevel::LOW_POWER) {
+            power_save_timer_->WakeUp();
+        }
+        WifiBoard::SetPowerSaveLevel(level);
+    }
+
 public:
     M5Paper() : boot_button_(BOOT_BUTTON_GPIO),
         volume_up_button_(VOLUME_UP_BUTTON_GPIO),
-        volume_down_button_(VOLUME_DOWN_BUTTON_GPIO) {
+        volume_down_button_(VOLUME_DOWN_BUTTON_GPIO),
+        audio_codec_(nullptr) {
         ESP_LOGI(TAG, "=== M5Paper GPIO Config ===");
         ESP_LOGI(TAG, "AUDIO_I2S_GPIO_MCLK: %d", (int)AUDIO_I2S_GPIO_MCLK);
         ESP_LOGI(TAG, "AUDIO_I2S_GPIO_BCLK: %d", (int)AUDIO_I2S_GPIO_BCLK);
@@ -211,6 +248,7 @@ public:
         InitializeI2c();
         I2cDetect();
         InitializeEpdDisplay();
+        InitializePowerSaveTimer();
     }
 
     // virtual Led* GetLed() override {
@@ -219,20 +257,22 @@ public:
     // }
 
     virtual AudioCodec* GetAudioCodec() override {
-        static Es8311AudioCodec audio_codec(
-            i2c_bus_,
-            I2C_NUM_1,
-            AUDIO_INPUT_SAMPLE_RATE,
-            AUDIO_OUTPUT_SAMPLE_RATE,
-            AUDIO_I2S_GPIO_MCLK,
-            AUDIO_I2S_GPIO_BCLK,
-            AUDIO_I2S_GPIO_WS,
-            AUDIO_I2S_GPIO_DOUT,
-            AUDIO_I2S_GPIO_DIN,
-            AUDIO_CODEC_GPIO_PA,
-            AUDIO_CODEC_ES8311_ADDR,
-            false);
-        return &audio_codec;
+        if (audio_codec_ == nullptr) {
+            audio_codec_ = new Es8311AudioCodec(
+                i2c_bus_,
+                I2C_NUM_1,
+                AUDIO_INPUT_SAMPLE_RATE,
+                AUDIO_OUTPUT_SAMPLE_RATE,
+                AUDIO_I2S_GPIO_MCLK,
+                AUDIO_I2S_GPIO_BCLK,
+                AUDIO_I2S_GPIO_WS,
+                AUDIO_I2S_GPIO_DOUT,
+                AUDIO_I2S_GPIO_DIN,
+                AUDIO_CODEC_GPIO_PA,
+                AUDIO_CODEC_ES8311_ADDR,
+                false);
+        }
+        return audio_codec_;
     }
 
     virtual Display* GetDisplay() override {

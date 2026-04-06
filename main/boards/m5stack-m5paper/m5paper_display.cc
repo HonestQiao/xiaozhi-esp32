@@ -141,6 +141,22 @@ void M5PaperDisplay::DoFullRefresh(bool force) {
     M5.Display.display();
 }
 
+void M5PaperDisplay::EnterLowPowerState() {
+    ESP_LOGI(TAG, "Display entering low power state");
+    // IT8951 supports standby mode - keeps the image on screen but stops refreshing
+    M5.Display.sleep();
+}
+
+void M5PaperDisplay::ExitLowPowerState() {
+    ESP_LOGI(TAG, "Display exiting low power state");
+    // Wake up IT8951 - it needs some time to recover from sleep
+    M5.Display.wakeup();
+    vTaskDelay(pdMS_TO_TICKS(100));
+    // Do a full refresh to clear any ghosting
+    M5.Display.fillScreen(TFT_WHITE);
+    M5.Display.display();
+}
+
 bool M5PaperDisplay::Lock(int timeout_ms) {
     return lvgl_port_lock(timeout_ms);
 }

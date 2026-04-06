@@ -41,6 +41,8 @@ public:
 
     // EPD specific methods
     void DoFullRefresh(bool force = false);
+    void EnterLowPowerState();
+    void ExitLowPowerState();
 
 protected:
     // LVGL flush callback (static)
