@@ -7,6 +7,8 @@
 #include "m5paper_display.h"
 #include "power_save_timer.h"
 
+#include <M5Unified.h>
+
 #include <esp_log.h>
 #include <driver/i2c_master.h>
 #include <iot_button.h>
@@ -277,6 +279,18 @@ public:
 
     virtual Display* GetDisplay() override {
         return display_;
+    }
+
+    virtual bool GetBatteryLevel(int& level, bool& charging, bool& discharging) override {
+        // 使用 M5Unified 的电源管理接口获取电池信息
+        level = M5.Power.getBatteryLevel();
+        
+        // 获取充电状态
+        auto charge_status = M5.Power.isCharging();
+        charging = (charge_status == m5::Power_Class::is_charging_t::is_charging);
+        discharging = (charge_status == m5::Power_Class::is_charging_t::is_discharging);
+        
+        return true;
     }
 };
 
