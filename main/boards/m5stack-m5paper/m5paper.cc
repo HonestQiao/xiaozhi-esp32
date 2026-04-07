@@ -6,13 +6,11 @@
 #include "i2c_device.h"
 #include "m5paper_display.h"
 #include "power_save_timer.h"
+#include "mcp_server.h"
 
 #include <M5Unified.h>
 
 #include <esp_log.h>
-#include <driver/i2c_master.h>
-#include <iot_button.h>
-#include <button_gpio.h>
 #include "driver/gpio.h"
 // #include "led/circular_strip.h"
 
@@ -215,6 +213,83 @@ private:
         );
     }
 
+    void InitializeMcpTools() {
+        auto& mcp_server = McpServer::GetInstance();
+        mcp_server.AddTool("self.environment.get_temperature",
+            "获取环境温度和湿度。返回当前环境的温度（摄氏度）和相对湿度。",
+            PropertyList(),
+            [this](const PropertyList&) -> ReturnValue {
+                float temp = ReadSht30Temperature();
+                if (temp < -900.0f) {
+                    return std::string("Failed to read SHT30 sensor");
+                }
+
+                // 读取湿度
+                uint8_t data[6];
+                M5.In_I2C.start(0x44, false, 400000);
+                M5.In_I2C.write(0x2C);
+                M5.In_I2C.write(0x06);
+                M5.In_I2C.stop();
+                vTaskDelay(pdMS_TO_TICKS(20));
+                M5.In_I2C.start(0x44, true, 400000);
+                M5.In_I2C.read(data, 6, true);
+                M5.In_I2C.stop();
+
+                float humidity = 0.0f;
+                if (Sht30Crc8(data + 3, 2) == data[5]) {
+                    uint16_t raw_humi = (data[3] << 8) | data[4];
+                    humidity = 100.0f * raw_humi / 65535.0f;
+                }
+
+                cJSON* result = cJSON_CreateObject();
+                cJSON_AddNumberToObject(result, "temperature", temp);
+                cJSON_AddNumberToObject(result, "humidity", humidity);
+                cJSON_AddStringToObject(result, "unit_temp", "celsius");
+                cJSON_AddStringToObject(result, "unit_humidity", "percent");
+                return result;
+            });
+    }
+
+    // SHT30 CRC8 校验辅助函数
+    uint8_t Sht30Crc8(const uint8_t* data, int len) {
+        uint8_t crc = 0xFF;
+        for (int i = 0; i < len; i++) {
+            crc ^= data[i];
+            for (int bit = 0; bit < 8; bit++) {
+                if (crc & 0x80) crc = (crc << 1) ^ 0x31;
+                else crc = (crc << 1);
+            }
+        }
+        return crc;
+    }
+
+    // 读取 SHT30 温度
+    float ReadSht30Temperature() {
+        uint8_t data[6];
+
+        // 使用 M5Unified 的内部 I2C 总线 (GPIO 21/22)
+        // 发送测量命令 0x2C06 (高重复性)
+        M5.In_I2C.start(0x44, false, 400000);
+        M5.In_I2C.write(0x2C);
+        M5.In_I2C.write(0x06);
+        M5.In_I2C.stop();
+
+        // 等待测量完成 (SHT30 高重复性约需 15ms)
+        vTaskDelay(pdMS_TO_TICKS(20));
+
+        // 读取 6 字节数据 (Temp MSB, LSB, CRC, Humi MSB, LSB, CRC)
+        M5.In_I2C.start(0x44, true, 400000);
+        M5.In_I2C.read(data, 6, true);  // last_nack=true
+        M5.In_I2C.stop();
+
+        // CRC 校验
+        if (Sht30Crc8(data, 2) != data[2]) return -999.0f;
+
+        // 计算温度
+        uint16_t raw_temp = (data[0] << 8) | data[1];
+        return -45.0f + (175.0f * raw_temp / 65535.0f);
+    }
+
     virtual void SetPowerSaveLevel(PowerSaveLevel level) override {
         if (level != PowerSaveLevel::LOW_POWER) {
             power_save_timer_->WakeUp();
@@ -250,6 +325,7 @@ public:
         InitializeI2c();
         I2cDetect();
         InitializeEpdDisplay();
+        InitializeMcpTools();
         InitializePowerSaveTimer();
     }
 
@@ -284,12 +360,12 @@ public:
     virtual bool GetBatteryLevel(int& level, bool& charging, bool& discharging) override {
         // 使用 M5Unified 的电源管理接口获取电池信息
         level = M5.Power.getBatteryLevel();
-        
+
         // 获取充电状态
         auto charge_status = M5.Power.isCharging();
         charging = (charge_status == m5::Power_Class::is_charging_t::is_charging);
         discharging = (charge_status == m5::Power_Class::is_charging_t::is_discharging);
-        
+
         return true;
     }
 };
