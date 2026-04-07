@@ -10,13 +10,17 @@
 
 /*
 引脚：
-PORT_A_白_G25 : SDA
-PORT_A_白_G32 : SCL
-              : MLCK
-PORT_B_白_G26 : SCLK
-PORT_B_白_G33 : DIN
-PORT_C_白_G18 : LRCK
-PORT_C_白_G19 : DOUT
+PORT_A_G25_黄 : SDA
+PORT_A_G32_白 : SCL
+
+PORT_B_GND_黑 : MLCK    <-> MCLK
+PORT_B_G26_黄 : SCLK    <-> BCLK
+PORT_B_G33_白 : DIN     <-> DOUT
+
+PORT_C_G18_黄 : WS      <-> LRCK
+PORT_C_G19_白 : DOUT    <-> DIN
+PORT_B_5V_红  : 5V
+PORT_B_GND_黑 : GND
 */
 #define AUDIO_I2S_GPIO_MCLK GPIO_NUM_NC
 #define AUDIO_I2S_GPIO_BCLK GPIO_NUM_26
@@ -31,11 +35,14 @@ PORT_C_白_G19 : DOUT
 
 #define BUILTIN_LED_GPIO        GPIO_NUM_NC
 #define BOOT_BUTTON_GPIO        GPIO_NUM_38
-#define VOLUME_UP_BUTTON_GPIO   GPIO_NUM_39
-#define VOLUME_DOWN_BUTTON_GPIO GPIO_NUM_37
+
+#define VOLUME_UP_BUTTON_GPIO   GPIO_NUM_37
+#define VOLUME_DOWN_BUTTON_GPIO GPIO_NUM_39
 
 #define EPD_MAIN_PWR_PIN        GPIO_NUM_2
 #define EXT_PWR_EN_GPIO         GPIO_NUM_5
+
+#define EXT_I2C_NUM             I2C_NUM_0
 
 // M5Paper IT8951 EPD Display Configuration
 // SPI for IT8951 (shared with TF card)
