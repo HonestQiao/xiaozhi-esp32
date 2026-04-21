@@ -1,12 +1,14 @@
 #include "wifi_board.h"
 #include "k10_audio_codec.h"
 #include "display/lcd_display.h"
+#include "k10_lcd_display.h"
 #include "esp_lcd_ili9341.h"
 #include "led_control.h"
 #include "application.h"
 #include "button.h"
 #include "config.h"
 #include "esp_video.h"
+#include "mcp_server.h"
 
 #include "led/circular_strip.h"
 #include "assets/lang_config.h"
@@ -15,16 +17,23 @@
 #include <esp_lcd_panel_vendor.h>
 #include <driver/i2c_master.h>
 #include <driver/spi_common.h>
+#include <esp_http_client.h>
+#include <esp_heap_caps.h>
 
 #include "esp_io_expander_tca95xx_16bit.h"
 
 #define TAG "DF-K10"
 
+class Df_K10Board;
+static Df_K10Board* g_df_k10_board = nullptr;
+
+static void ShowImageTask(void* arg);
+
 class Df_K10Board : public WifiBoard {
 private:
     i2c_master_bus_handle_t i2c_bus_;
     esp_io_expander_handle_t io_expander;
-    LcdDisplay *display_;
+    K10Display *display_;
     button_handle_t btn_a;
     button_handle_t btn_b;
     EspVideo* camera_;
@@ -243,7 +252,7 @@ private:
         ESP_ERROR_CHECK(esp_lcd_panel_mirror(panel, DISPLAY_MIRROR_X, DISPLAY_MIRROR_Y));
         ESP_ERROR_CHECK(esp_lcd_panel_disp_on_off(panel, true));
 
-        display_ = new SpiLcdDisplay(panel_io, panel,
+        display_ = new K10Display(panel_io, panel,
                                 DISPLAY_WIDTH, DISPLAY_HEIGHT, DISPLAY_OFFSET_X, DISPLAY_OFFSET_Y, DISPLAY_MIRROR_X, DISPLAY_MIRROR_Y, DISPLAY_SWAP_XY);
     }
 
@@ -253,8 +262,38 @@ private:
         new LedStripControl(led_strip_);
     }
 
+    void InitializeMcp() {
+        auto& mcp_server = McpServer::GetInstance();
+
+        mcp_server.AddTool(
+            "self.df_k10.show_name",
+            "显示甲骨文，传入一个甲骨文对应的汉字，在屏幕上显示该汉字",
+            PropertyList({Property("name", kPropertyTypeString)}),
+            [](const PropertyList& properties) -> ReturnValue {
+                std::string name = properties["name"].value<std::string>();
+                ESP_LOGI(TAG, "MCP show_name 被调用，传入 name: %s", name.c_str());
+                std::string* name_ptr = new std::string(name);
+                xTaskCreate(ShowImageTask, "show_image", 8192, name_ptr, 5, nullptr);
+                return std::string("{\"success\": true, \"message\": \"正在获取图片: ") + name + "\"}";
+            });
+
+        mcp_server.AddTool(
+            "self.df_k10.hide_oracle",
+            "隐藏甲骨文图片，恢复原有的表情显示",
+            PropertyList(),
+            [](const PropertyList& properties) -> ReturnValue {
+                ESP_LOGI(TAG, "MCP hide_oracle 被调用");
+                auto* lcd_display = static_cast<LcdDisplay*>(Board::GetInstance().GetDisplay());
+                if (lcd_display != nullptr) {
+                    lcd_display->SetPreviewImage(nullptr);
+                }
+                return std::string("{\"success\": true, \"message\": \"已恢复表情显示\"}");
+            });
+    }
+
 public:
     Df_K10Board() {
+        g_df_k10_board = this;
         InitializeI2c();
         InitializeIoExpander();
         InitializeSpi();
@@ -262,6 +301,7 @@ public:
         InitializeButtons();
         InitializeIot();
         InitializeCamera();
+        InitializeMcp();
     }
 
     virtual Led* GetLed() override {
@@ -292,8 +332,84 @@ public:
     virtual Display *GetDisplay() override {
         return display_;
     }
+
+    void ShowEmojiImage(const uint8_t* data, size_t size) {
+        if (display_ != nullptr) {
+            display_->SetOracleImageFromJpeg(data, size);
+        }
+    }
 };
 
 DECLARE_BOARD(Df_K10Board);
 
 Df_K10Board* Df_K10Board::instance_ = nullptr;
+
+static void ShowImageTask(void* arg) {
+    std::string* name_ptr = static_cast<std::string*>(arg);
+    std::string name = *name_ptr;
+    delete name_ptr;
+
+    ESP_LOGI(TAG, "Downloading image for: %s", name.c_str());
+
+    esp_http_client_config_t config = {
+        .url = "http://192.168.1.15:5174/",
+        .method = HTTP_METHOD_POST,
+        .timeout_ms = 15000,
+    };
+    esp_http_client_handle_t client = esp_http_client_init(&config);
+    if (!client) {
+        ESP_LOGE(TAG, "Failed to init HTTP client");
+        vTaskDelete(nullptr);
+        return;
+    }
+
+    std::string post_data = "name=" + name;
+    esp_http_client_set_post_field(client, post_data.c_str(), post_data.length());
+    esp_http_client_set_header(client, "Content-Type", "application/x-www-form-urlencoded");
+
+    esp_err_t err = esp_http_client_open(client, post_data.length());
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "HTTP open failed: %s", esp_err_to_name(err));
+        esp_http_client_cleanup(client);
+        vTaskDelete(nullptr);
+        return;
+    }
+
+    esp_http_client_write(client, post_data.c_str(), post_data.length());
+    int content_length = esp_http_client_fetch_headers(client);
+    int status = esp_http_client_get_status_code(client);
+
+    ESP_LOGI(TAG, "HTTP status: %d, content_length: %d", status, content_length);
+
+    if (status != 200 || content_length <= 0) {
+        ESP_LOGE(TAG, "HTTP failed, status=%d, len=%d", status, content_length);
+        esp_http_client_cleanup(client);
+        vTaskDelete(nullptr);
+        return;
+    }
+
+    uint8_t* buffer = (uint8_t*)heap_caps_malloc(content_length + 1, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+    if (!buffer) {
+        ESP_LOGE(TAG, "Failed to allocate buffer");
+        esp_http_client_cleanup(client);
+        vTaskDelete(nullptr);
+        return;
+    }
+
+    int total = 0;
+    while (total < content_length) {
+        int r = esp_http_client_read(client, (char*)buffer + total, content_length - total);
+        if (r <= 0) break;
+        total += r;
+    }
+    esp_http_client_cleanup(client);
+
+    ESP_LOGI(TAG, "Downloaded %d bytes", total);
+
+    if (total > 0 && g_df_k10_board != nullptr) {
+        g_df_k10_board->ShowEmojiImage(buffer, total);
+    }
+    heap_caps_free(buffer);
+
+    vTaskDelete(nullptr);
+}
