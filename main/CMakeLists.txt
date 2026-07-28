@@ -801,6 +801,10 @@ elseif(CONFIG_BOARD_TYPE_XORIGIN_AIPI_LITE)
     set(BUILTIN_TEXT_FONT font_noto_sans_basic_14_1)
     set(BUILTIN_ICON_FONT font_material_symbols_14_1)
     set(DEFAULT_EMOJI_COLLECTION noto-color-emoji_32)
+elseif(CONFIG_BOARD_TYPE_ZECTRIX_S3_EPAPER_4_2)
+    set(BOARD_DIR "zectrix/zectrix-s3-epaper-4.2")
+    set(BUILTIN_TEXT_FONT font_noto_sans_basic_30_4)
+    set(BUILTIN_ICON_FONT font_material_symbols_30_4)
 elseif(CONFIG_BOARD_TYPE_HU_087)
     set(BOARD_DIR "hu-087")
     set(BUILTIN_TEXT_FONT font_noto_sans_basic_14_1)
@@ -1031,6 +1035,12 @@ if(CONFIG_BOARD_TYPE_ESP_VOCAT AND IDF_VERSION_MAJOR LESS 6)
     list(APPEND MAIN_PRIV_REQUIRES_EXTRA
         espressif__touch_slider_sensor
         espressif__touch_button_sensor
+    )
+endif()
+if(CONFIG_BOARD_TYPE_ESP32_P4_FUNCTION_EV_BOARD)
+    list(APPEND MAIN_PRIV_REQUIRES_EXTRA
+        esp_driver_sdmmc
+        sdmmc
     )
 endif()
 idf_component_register(SRCS ${SOURCES}
